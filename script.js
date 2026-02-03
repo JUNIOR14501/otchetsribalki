@@ -7,6 +7,16 @@ tg.expand();
 tg.setHeaderColor('#1e3c72');
 tg.setBackgroundColor('#667eea');
 
+// Обработчик события отправки данных
+tg.onEvent('viewportChanged', function(event) {
+    console.log('Viewport changed:', event);
+});
+
+// Обработчик закрытия Web App
+tg.onEvent('close', function() {
+    console.log('Web App closed');
+});
+
 // Элементы формы
 const form = document.getElementById('reportForm');
 const fileInput = document.getElementById('fileInput');
@@ -67,10 +77,13 @@ form.addEventListener('submit', async (e) => {
         // Отправляем данные в бота (file_ids будут добавлены на стороне бота)
         tg.sendData(JSON.stringify(formData));
         
-        // Закрываем Web App
+        // Показываем сообщение об успешной отправке
+        submitBtn.innerHTML = '<span>✅ Отправлено!</span>';
+        
+        // Закрываем Web App через небольшую задержку, чтобы пользователь увидел подтверждение
         setTimeout(() => {
             tg.close();
-        }, 1000);
+        }, 1500);
         
     } catch (error) {
         console.error('Error sending data:', error);
