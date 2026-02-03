@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отчет о рыбалке</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--tg-theme-text-color, #000000);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color, #000000);
+        }
+
+        input[type="text"],
+        input[type="date"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--tg-theme-hint-color, #999999);
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--tg-theme-button-color, #3390ec);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .file-upload {
+            margin-top: 10px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px;
+            border: 2px dashed var(--tg-theme-hint-color, #999999);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            border-color: var(--tg-theme-button-color, #3390ec);
+            background: var(--tg-theme-bg-color, #ffffff);
+        }
+
+        .file-list {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .file-item {
+            padding: 8px 12px;
+            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            border-radius: 6px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-item-remove {
+            cursor: pointer;
+            color: #ff4444;
+            font-weight: bold;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: opacity 0.3s;
+        }
+
+        .submit-btn:hover {
+            opacity: 0.9;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: #ff4444;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .info {
+            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .info-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .required {
+            color: #ff4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎣 Отчет о рыбалке</h1>
+
+        <div class="info">
+            <div class="info-title">Важно:</div>
+            <ul>
+                <li>Отчеты принимаются только из Ленобласти и СПБ</li>
+                <li>Дата не должна быть позднее 3 дней</li>
+                <li>Не принимаются отчеты с пустых рыбалок</li>
+                <li>Не принимаются отчеты с платных водоемов</li>
+                <li>Запрещены любые ссылки</li>
+            </ul>
+        </div>
+
+        <form id="reportForm">
+            <div class="form-group">
+                <label for="description">
+                    Описание рыбалки <span class="required">*</span>
+                </label>
+                <textarea 
+                    id="description" 
+                    name="description" 
+                    placeholder="Опишите рыбалку, на что ловили, какие снасти использовали..."
+                    required
+                ></textarea>
+                <div id="descriptionError" class="error"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="location">
+                    Место рыбалки <span class="required">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="location" 
+                    name="location" 
+                    placeholder="Например: озеро Разлив, Ленинградская область"
+                    required
+                />
+                <div id="locationError" class="error"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="date">
+                    Дата поездки <span class="required">*</span>
+                </label>
+                <input 
+                    type="date" 
+                    id="date" 
+                    name="date" 
+                    required
+                />
+                <div id="dateError" class="error"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="additional_info">
+                    Дополнительная информация
+                </label>
+                <textarea 
+                    id="additional_info" 
+                    name="additional_info" 
+                    placeholder="Время активности рыбы, особенности, ваши комментарии..."
+                ></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    Фото или видео <span class="required">*</span>
+                </label>
+                <div class="file-upload">
+                    <div class="file-input-wrapper">
+                        <input 
+                            type="file" 
+                            id="mediaFiles" 
+                            class="file-input" 
+                            accept="image/*,video/*" 
+                            multiple
+                        />
+                        <label for="mediaFiles" class="file-input-label">
+                            📎 Выберите фото или видео
+                        </label>
+                    </div>
+                    <div id="fileList" class="file-list"></div>
+                    <div id="mediaError" class="error"></div>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">
+                Отправить отчет
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        const form = document.getElementById('reportForm');
+        const mediaInput = document.getElementById('mediaFiles');
+        const fileList = document.getElementById('fileList');
+        const submitBtn = document.getElementById('submitBtn');
+        let selectedFiles = [];
+
+        // Установка максимальной даты (сегодня)
+        const dateInput = document.getElementById('date');
+        const today = new Date();
+        dateInput.max = today.toISOString().split('T')[0];
+
+        // Обработка выбора файлов
+        mediaInput.addEventListener('change', (e) => {
+            selectedFiles = Array.from(e.target.files);
+            updateFileList();
+        });
+
+        function updateFileList() {
+            fileList.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span>${file.name}</span>
+                    <span class="file-item-remove" onclick="removeFile(${index})">×</span>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+            // Обновляем input
+            const dt = new DataTransfer();
+            selectedFiles.forEach(file => dt.items.add(file));
+            mediaInput.files = dt.files;
+        }
+
+        // Валидация формы
+        function validateForm() {
+            let isValid = true;
+            const errors = {};
+
+            // Проверка описания
+            const description = document.getElementById('description').value.trim();
+            if (description.length < 10) {
+                errors.description = 'Описание должно содержать минимум 10 символов';
+                isValid = false;
+            }
+
+            // Проверка места
+            const location = document.getElementById('location').value.trim();
+            if (!location) {
+                errors.location = 'Укажите место рыбалки';
+                isValid = false;
+            }
+
+            // Проверка даты
+            const date = document.getElementById('date').value;
+            if (!date) {
+                errors.date = 'Укажите дату поездки';
+                isValid = false;
+            } else {
+                const selectedDate = new Date(date + 'T00:00:00');
+                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const daysDiff = Math.floor((todayStart - selectedDate) / (1000 * 60 * 60 * 24));
+                if (selectedDate > todayStart) {
+                    errors.date = 'Дата не может быть в будущем';
+                    isValid = false;
+                } else if (daysDiff > 3) {
+                    errors.date = 'Дата не должна быть позднее 3 дней';
+                    isValid = false;
+                }
+            }
+
+            // Проверка медиа
+            if (selectedFiles.length === 0) {
+                errors.media = 'Необходимо приложить хотя бы одно фото или видео';
+                isValid = false;
+            }
+
+            // Отображение ошибок
+            Object.keys(errors).forEach(key => {
+                const errorEl = document.getElementById(key + 'Error');
+                if (errorEl) {
+                    errorEl.textContent = errors[key] || '';
+                }
+            });
+
+            return isValid;
+        }
+
+        // Отправка формы
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Очистка предыдущих ошибок
+            document.querySelectorAll('.error').forEach(el => el.textContent = '');
+
+            if (!validateForm()) {
+                tg.showAlert('Пожалуйста, исправьте ошибки в форме');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Отправка...';
+
+            try {
+                // Подготовка данных
+                const formData = {
+                    description: document.getElementById('description').value.trim(),
+                    location: document.getElementById('location').value.trim(),
+                    date: document.getElementById('date').value,
+                    additional_info: document.getElementById('additional_info').value.trim()
+                };
+
+                // Отправка данных через Telegram WebApp
+                tg.sendData(JSON.stringify(formData));
+
+                // Отправка медиа файлов (если есть)
+                // Примечание: Telegram WebApp API не поддерживает прямую отправку файлов
+                // Файлы нужно отправлять через бота отдельными сообщениями
+                // Или использовать другой подход
+
+                tg.showAlert('✅ Данные отправлены! Теперь отправьте фото/видео боту в чат, затем используйте команду /submit для завершения.');
+                tg.close();
+
+            } catch (error) {
+                console.error('Error:', error);
+                tg.showAlert('Произошла ошибка при отправке. Попробуйте еще раз.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Отправить отчет';
+            }
+        });
+    </script>
+</body>
+</html>
