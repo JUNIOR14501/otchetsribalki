@@ -17,6 +17,15 @@ tg.onEvent('close', function() {
     console.log('Web App closed');
 });
 
+// Обработчик получения данных от бота
+tg.onEvent('mainButtonClicked', function() {
+    console.log('Main button clicked');
+});
+
+// Включаем MainButton для закрытия после отправки
+tg.MainButton.setText('Закрыть');
+tg.MainButton.hide();
+
 // Элементы формы
 const form = document.getElementById('reportForm');
 const fileInput = document.getElementById('fileInput');
@@ -63,6 +72,8 @@ form.addEventListener('submit', async (e) => {
         hashtags: document.getElementById('hashtags').value.trim()
     };
     
+    console.log('Form data:', formData);
+    
     // Валидация обязательных полей
     if (!formData.date || !formData.location || !formData.lure || !formData.comment) {
         tg.showAlert('Пожалуйста, заполните все обязательные поля');
@@ -74,20 +85,42 @@ form.addEventListener('submit', async (e) => {
     submitBtn.innerHTML = '<span class="loading"></span>Отправка...';
     
     try {
+        const jsonData = JSON.stringify(formData);
+        console.log('Sending data:', jsonData);
+        console.log('Telegram WebApp object:', tg);
+        console.log('sendData method exists:', typeof tg.sendData === 'function');
+        
+        // Проверяем, что метод sendData доступен
+        if (typeof tg.sendData !== 'function') {
+            throw new Error('sendData method is not available');
+        }
+        
         // Отправляем данные в бота (file_ids будут добавлены на стороне бота)
-        tg.sendData(JSON.stringify(formData));
+        tg.sendData(jsonData);
+        
+        console.log('Data sent successfully via sendData');
         
         // Показываем сообщение об успешной отправке
-        submitBtn.innerHTML = '<span>✅ Отправлено!</span>';
+        submitBtn.innerHTML = '<span>✅ Отправлено! Обработка...</span>';
         
-        // Закрываем Web App через небольшую задержку, чтобы пользователь увидел подтверждение
-        setTimeout(() => {
+        // Показываем MainButton для закрытия
+        tg.MainButton.setText('Закрыть');
+        tg.MainButton.show();
+        tg.MainButton.onClick(function() {
             tg.close();
-        }, 1500);
+        });
+        
+        // Также закрываем автоматически через 3 секунды, если пользователь не закрыл вручную
+        setTimeout(() => {
+            if (tg.isExpanded) {
+                tg.close();
+            }
+        }, 3000);
         
     } catch (error) {
         console.error('Error sending data:', error);
-        tg.showAlert('Ошибка при отправке отчёта. Попробуйте ещё раз.');
+        console.error('Error stack:', error.stack);
+        tg.showAlert('Ошибка при отправке отчёта: ' + (error.message || String(error)));
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<span>Отправить отчёт</span>';
     }
