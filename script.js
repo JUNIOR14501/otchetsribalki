@@ -7,31 +7,15 @@ tg.expand();
 tg.setHeaderColor('#1e3c72');
 tg.setBackgroundColor('#667eea');
 
-// Обработчик события отправки данных
-tg.onEvent('viewportChanged', function(event) {
-    console.log('Viewport changed:', event);
-});
-
-// Обработчик закрытия Web App
-tg.onEvent('close', function() {
-    console.log('Web App closed');
-});
-
-// Обработчик получения данных от бота
-tg.onEvent('mainButtonClicked', function() {
-    console.log('Main button clicked');
-});
-
-// Включаем MainButton для закрытия после отправки
-tg.MainButton.setText('Закрыть');
-tg.MainButton.hide();
-
 // Элементы формы
 const form = document.getElementById('reportForm');
 const fileInput = document.getElementById('fileInput');
 const fileUploadArea = document.getElementById('fileUploadArea');
 const filePreview = document.getElementById('filePreview');
 const submitBtn = document.getElementById('submitBtn');
+
+// Массив для хранения файлов в base64
+let uploadedFiles = [];
 
 // Установка максимальной даты (сегодня)
 const dateInput = document.getElementById('date');
@@ -41,26 +25,137 @@ maxDate.setDate(today.getDate() - 3); // Минимум 3 дня назад
 dateInput.max = today.toISOString().split('T')[0];
 dateInput.value = maxDate.toISOString().split('T')[0]; // Устанавливаем дату по умолчанию
 
-// Информация о том, что файлы нужно отправлять боту
-const fileInfo = document.createElement('div');
-fileInfo.className = 'file-info';
-fileInfo.innerHTML = '<p style="color: #667eea; font-weight: 600; margin-bottom: 10px;">📎 Файлы нужно отправить боту перед заполнением формы!</p>';
-fileUploadArea.parentElement.insertBefore(fileInfo, fileUploadArea);
+// Обработчик клика на область загрузки файлов
+fileUploadArea.addEventListener('click', () => {
+    fileInput.click();
+});
 
-// Файлы загружаются через бота, поэтому здесь только информационное сообщение
-fileUploadArea.style.opacity = '0.6';
-fileUploadArea.style.cursor = 'not-allowed';
-fileUploadArea.innerHTML = `
-    <div class="upload-placeholder">
-        <span class="upload-icon">ℹ️</span>
-        <p>Файлы нужно отправить боту</p>
-        <small>Отправьте фото/видео боту в чат, затем заполните эту форму</small>
-    </div>
-`;
+// Обработчик выбора файлов
+fileInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    
+    for (const file of files) {
+        await handleFileUpload(file);
+    }
+    
+    // Очищаем input для возможности повторного выбора того же файла
+    fileInput.value = '';
+});
+
+// Обработка загрузки файла
+async function handleFileUpload(file) {
+    try {
+        // Проверяем размер файла (максимум 20 МБ)
+        const maxSize = 20 * 1024 * 1024; // 20 МБ
+        if (file.size > maxSize) {
+            tg.showAlert(`Файл ${file.name} слишком большой. Максимальный размер: 20 МБ`);
+            return;
+        }
+        
+        // Читаем файл как base64
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            const base64Data = e.target.result;
+            
+            // Создаем элемент превью
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.dataset.fileName = file.name;
+            
+            if (file.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = base64Data;
+                fileItem.appendChild(img);
+            } else if (file.type.startsWith('video/')) {
+                const video = document.createElement('video');
+                video.src = base64Data;
+                video.controls = true;
+                fileItem.appendChild(video);
+            }
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerHTML = '×';
+            removeBtn.onclick = () => {
+                fileItem.remove();
+                uploadedFiles = uploadedFiles.filter(f => f.name !== file.name);
+                updateFileCount();
+            };
+            fileItem.appendChild(removeBtn);
+            
+            filePreview.appendChild(fileItem);
+            
+            // Сохраняем файл в массив
+            uploadedFiles.push({
+                name: file.name,
+                data: base64Data,
+                type: file.type,
+                size: file.size
+            });
+            
+            updateFileCount();
+        };
+        
+        reader.onerror = (error) => {
+            console.error('Error reading file:', error);
+            tg.showAlert('Ошибка при чтении файла');
+        };
+        
+        // Читаем файл как Data URL (base64)
+        reader.readAsDataURL(file);
+        
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        tg.showAlert('Ошибка при загрузке файла. Попробуйте ещё раз.');
+    }
+}
+
+// Обновление счетчика файлов
+function updateFileCount() {
+    const count = uploadedFiles.length;
+    if (count > 0) {
+        const placeholder = fileUploadArea.querySelector('.upload-placeholder p');
+        if (placeholder) {
+            placeholder.textContent = `Загружено файлов: ${count}`;
+        }
+    }
+}
+
+// Обработка drag and drop
+fileUploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    fileUploadArea.style.borderColor = '#667eea';
+    fileUploadArea.style.background = '#f0f4ff';
+});
+
+fileUploadArea.addEventListener('dragleave', () => {
+    fileUploadArea.style.borderColor = '#bdc3c7';
+    fileUploadArea.style.background = '#f8f9fa';
+});
+
+fileUploadArea.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    fileUploadArea.style.borderColor = '#bdc3c7';
+    fileUploadArea.style.background = '#f8f9fa';
+    
+    const files = Array.from(e.dataTransfer.files);
+    for (const file of files) {
+        if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+            await handleFileUpload(file);
+        }
+    }
+});
 
 // Обработчик отправки формы
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    // Валидация файлов
+    if (uploadedFiles.length === 0) {
+        tg.showAlert('Пожалуйста, прикрепите хотя бы одно фото или видео');
+        return;
+    }
     
     // Получаем данные формы
     const formData = {
@@ -69,10 +164,12 @@ form.addEventListener('submit', async (e) => {
         lure: document.getElementById('lure').value.trim(),
         conditions: document.getElementById('conditions').value.trim(),
         comment: document.getElementById('comment').value.trim(),
-        hashtags: document.getElementById('hashtags').value.trim()
+        hashtags: document.getElementById('hashtags').value.trim(),
+        files: uploadedFiles.map(f => ({
+            data: f.data,
+            type: f.type
+        }))
     };
-    
-    console.log('Form data:', formData);
     
     // Валидация обязательных полей
     if (!formData.date || !formData.location || !formData.lure || !formData.comment) {
@@ -86,19 +183,12 @@ form.addEventListener('submit', async (e) => {
     
     try {
         const jsonData = JSON.stringify(formData);
-        console.log('Sending data:', jsonData);
-        console.log('Telegram WebApp object:', tg);
-        console.log('sendData method exists:', typeof tg.sendData === 'function');
+        console.log('Sending data, files count:', uploadedFiles.length);
         
-        // Проверяем, что метод sendData доступен
-        if (typeof tg.sendData !== 'function') {
-            throw new Error('sendData method is not available');
-        }
-        
-        // Отправляем данные в бота (file_ids будут добавлены на стороне бота)
+        // Отправляем данные в бота
         tg.sendData(jsonData);
         
-        console.log('Data sent successfully via sendData');
+        console.log('Data sent successfully');
         
         // Показываем сообщение об успешной отправке
         submitBtn.innerHTML = '<span>✅ Отправлено! Обработка...</span>';
@@ -110,7 +200,7 @@ form.addEventListener('submit', async (e) => {
             tg.close();
         });
         
-        // Также закрываем автоматически через 3 секунды, если пользователь не закрыл вручную
+        // Закрываем автоматически через 3 секунды
         setTimeout(() => {
             if (tg.isExpanded) {
                 tg.close();
@@ -119,11 +209,8 @@ form.addEventListener('submit', async (e) => {
         
     } catch (error) {
         console.error('Error sending data:', error);
-        console.error('Error stack:', error.stack);
         tg.showAlert('Ошибка при отправке отчёта: ' + (error.message || String(error)));
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<span>Отправить отчёт</span>';
     }
 });
-
-// Drag and drop отключен, так как файлы загружаются через бота
