@@ -137,6 +137,7 @@ small {
     border-radius: 8px;
     overflow: hidden;
     aspect-ratio: 1;
+    border: 2px solid #e0e0e0;
 }
 
 .file-item img,
@@ -161,6 +162,7 @@ small {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-weight: bold;
 }
 
 .file-item .remove-btn:hover {
