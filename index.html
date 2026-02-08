@@ -66,12 +66,14 @@
             <div class="form-group">
                 <label>📸 Фото или видео *</label>
                 <div class="file-upload-area" id="fileUploadArea">
+                    <input type="file" id="fileInput" multiple accept="image/*,video/*" style="display: none;">
                     <div class="upload-placeholder">
-                        <span class="upload-icon">ℹ️</span>
-                        <p>Файлы нужно отправить боту</p>
-                        <small>Отправьте фото/видео боту в чат, затем заполните эту форму</small>
+                        <span class="upload-icon">📎</span>
+                        <p>Нажмите для выбора файлов</p>
+                        <small>Можно выбрать несколько файлов</small>
                     </div>
                 </div>
+                <div id="filePreview" class="file-preview"></div>
             </div>
 
             <!-- Кнопка отправки -->
