@@ -25,85 +25,119 @@ maxDate.setDate(today.getDate() - 3); // Минимум 3 дня назад
 dateInput.max = today.toISOString().split('T')[0];
 dateInput.value = maxDate.toISOString().split('T')[0]; // Устанавливаем дату по умолчанию
 
-// Обработчик клика на область загрузки файлов
-fileUploadArea.addEventListener('click', () => {
-    fileInput.click();
-});
+// Файлы загружаются через бота, поэтому загрузка через форму отключена
+// Оставляем код для возможного будущего использования, но не активируем
 
-// Обработчик выбора файлов
-fileInput.addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files);
-    
-    for (const file of files) {
-        await handleFileUpload(file);
-    }
-    
-    // Очищаем input для возможности повторного выбора того же файла
-    fileInput.value = '';
-});
+// Функция сжатия изображения
+function compressImage(file, maxWidth = 1920, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        if (!file.type.startsWith('image/')) {
+            resolve(file);
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // Масштабируем если нужно
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Конвертируем в base64 с качеством
+                const compressedData = canvas.toDataURL(file.type, quality);
+                const compressedFile = {
+                    name: file.name,
+                    data: compressedData,
+                    type: file.type,
+                    size: compressedData.length
+                };
+                
+                resolve(compressedFile);
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
 
 // Обработка загрузки файла
 async function handleFileUpload(file) {
     try {
-        // Проверяем размер файла (максимум 20 МБ)
-        const maxSize = 20 * 1024 * 1024; // 20 МБ
+        // Проверяем размер файла (максимум 10 МБ для исходного файла)
+        const maxSize = 10 * 1024 * 1024; // 10 МБ
         if (file.size > maxSize) {
-            tg.showAlert(`Файл ${file.name} слишком большой. Максимальный размер: 20 МБ`);
+            tg.showAlert(`Файл ${file.name} слишком большой. Максимальный размер: 10 МБ`);
             return;
         }
         
-        // Читаем файл как base64
-        const reader = new FileReader();
-        
-        reader.onload = (e) => {
-            const base64Data = e.target.result;
-            
-            // Создаем элемент превью
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
-            fileItem.dataset.fileName = file.name;
-            
-            if (file.type.startsWith('image/')) {
-                const img = document.createElement('img');
-                img.src = base64Data;
-                fileItem.appendChild(img);
-            } else if (file.type.startsWith('video/')) {
-                const video = document.createElement('video');
-                video.src = base64Data;
-                video.controls = true;
-                fileItem.appendChild(video);
-            }
-            
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'remove-btn';
-            removeBtn.innerHTML = '×';
-            removeBtn.onclick = () => {
-                fileItem.remove();
-                uploadedFiles = uploadedFiles.filter(f => f.name !== file.name);
-                updateFileCount();
-            };
-            fileItem.appendChild(removeBtn);
-            
-            filePreview.appendChild(fileItem);
-            
-            // Сохраняем файл в массив
-            uploadedFiles.push({
-                name: file.name,
-                data: base64Data,
-                type: file.type,
-                size: file.size
+        // Сжимаем изображения
+        let processedFile;
+        if (file.type.startsWith('image/')) {
+            processedFile = await compressImage(file, 1920, 0.7);
+        } else {
+            // Для видео просто читаем как есть
+            const reader = new FileReader();
+            processedFile = await new Promise((resolve, reject) => {
+                reader.onload = (e) => {
+                    resolve({
+                        name: file.name,
+                        data: e.target.result,
+                        type: file.type,
+                        size: file.size
+                    });
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
             });
-            
+        }
+        
+        // Создаем элемент превью
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.dataset.fileName = processedFile.name;
+        
+        if (processedFile.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = processedFile.data;
+            fileItem.appendChild(img);
+        } else if (processedFile.type.startsWith('video/')) {
+            const video = document.createElement('video');
+            video.src = processedFile.data;
+            video.controls = true;
+            fileItem.appendChild(video);
+        }
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.innerHTML = '×';
+        removeBtn.onclick = () => {
+            fileItem.remove();
+            uploadedFiles = uploadedFiles.filter(f => f.name !== processedFile.name);
             updateFileCount();
         };
+        fileItem.appendChild(removeBtn);
         
-        reader.onerror = (error) => {
-            console.error('Error reading file:', error);
-            tg.showAlert('Ошибка при чтении файла');
-        };
+        filePreview.appendChild(fileItem);
         
-        // Читаем файл как Data URL (base64)
-        reader.readAsDataURL(file);
+        // Сохраняем файл в массив
+        uploadedFiles.push(processedFile);
+        
+        updateFileCount();
         
     } catch (error) {
         console.error('Error uploading file:', error);
@@ -151,39 +185,53 @@ fileUploadArea.addEventListener('drop', async (e) => {
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Валидация файлов
-    if (uploadedFiles.length === 0) {
-        tg.showAlert('Пожалуйста, прикрепите хотя бы одно фото или видео');
-        return;
-    }
-    
-    // Получаем данные формы
-    const formData = {
-        date: dateInput.value,
-        location: document.getElementById('location').value.trim(),
-        lure: document.getElementById('lure').value.trim(),
-        conditions: document.getElementById('conditions').value.trim(),
-        comment: document.getElementById('comment').value.trim(),
-        hashtags: document.getElementById('hashtags').value.trim(),
-        files: uploadedFiles.map(f => ({
-            data: f.data,
-            type: f.type
-        }))
-    };
-    
     // Валидация обязательных полей
-    if (!formData.date || !formData.location || !formData.lure || !formData.comment) {
+    const date = dateInput.value;
+    const location = document.getElementById('location').value.trim();
+    const lure = document.getElementById('lure').value.trim();
+    const comment = document.getElementById('comment').value.trim();
+    
+    if (!date || !location || !lure || !comment) {
         tg.showAlert('Пожалуйста, заполните все обязательные поля');
         return;
     }
+    
+    // Проверяем наличие файлов
+    // Файлы должны быть отправлены боту отдельно, или загружены в форме (но не через Web App из-за ограничений)
+    const hasFilesInForm = uploadedFiles.length > 0;
     
     // Показываем индикатор загрузки
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="loading"></span>Отправка...';
     
     try {
+        // Отправляем ТОЛЬКО текстовые данные через Web App
+        // Файлы должны быть отправлены боту отдельно (через чат)
+        const formData = {
+            date: date,
+            location: location,
+            lure: lure,
+            conditions: document.getElementById('conditions').value.trim(),
+            comment: comment,
+            hashtags: document.getElementById('hashtags').value.trim()
+        };
+        
         const jsonData = JSON.stringify(formData);
-        console.log('Sending data, files count:', uploadedFiles.length);
+        const dataSize = jsonData.length;
+        console.log('Sending text data only, size:', dataSize, 'bytes');
+        console.log('Files in form:', uploadedFiles.length, '(will be ignored, use bot chat)');
+        
+        // Проверяем размер данных (лимит Telegram Web App ~4096 байт)
+        const maxDataSize = 4000; // Оставляем небольшой запас
+        if (dataSize > maxDataSize) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>Отправить отчёт</span>';
+            tg.showAlert(
+                `Данные слишком большие для отправки.\n\n` +
+                `Пожалуйста, сократите текст и попробуйте снова.`
+            );
+            return;
+        }
         
         // Отправляем данные в бота
         tg.sendData(jsonData);
@@ -191,7 +239,15 @@ form.addEventListener('submit', async (e) => {
         console.log('Data sent successfully');
         
         // Показываем сообщение об успешной отправке
-        submitBtn.innerHTML = '<span>✅ Отправлено! Обработка...</span>';
+        if (hasFilesInForm) {
+            submitBtn.innerHTML = '<span>⚠️ Отправлено (файлы нужно отправить боту)</span>';
+            tg.showAlert(
+                'Текстовые данные отправлены!\n\n' +
+                'ВАЖНО: Файлы нужно отправить боту в чат отдельно, иначе отчёт не будет принят.'
+            );
+        } else {
+            submitBtn.innerHTML = '<span>✅ Отправлено! Обработка...</span>';
+        }
         
         // Показываем MainButton для закрытия
         tg.MainButton.setText('Закрыть');
