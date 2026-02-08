@@ -65,15 +65,17 @@
             <!-- Фото/Видео -->
             <div class="form-group">
                 <label>📸 Фото или видео *</label>
-                <div class="file-upload-area" id="fileUploadArea">
-                    <input type="file" id="fileInput" multiple accept="image/*,video/*" style="display: none;">
+                <div class="file-upload-area" id="fileUploadArea" style="opacity: 0.6; cursor: not-allowed;">
                     <div class="upload-placeholder">
-                        <span class="upload-icon">📎</span>
-                        <p>Нажмите для выбора файлов</p>
-                        <small>Можно выбрать несколько файлов</small>
+                        <span class="upload-icon">ℹ️</span>
+                        <p>Файлы нужно отправить боту</p>
+                        <small>Отправьте фото/видео боту в чат, затем заполните эту форму</small>
                     </div>
                 </div>
                 <div id="filePreview" class="file-preview"></div>
+                <small style="color: #667eea; font-weight: 600; margin-top: 10px; display: block;">
+                    ⚠️ Файлы загружаются через бота, а не через форму!
+                </small>
             </div>
 
             <!-- Кнопка отправки -->
